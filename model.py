@@ -1,8 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import numpy as np
-from tqdm import tqdm
 from board import othello
 
 dev = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -27,6 +24,7 @@ class PolicyNetwork(nn.Module):
         self.l1 = nn.Linear(64, 64)
         self.relu = nn.ReLU()
         self.softmax = nn.Softmax(dim=1)
+        self.drop = nn.Dropout(p=0.05)
         self.train()
 
     def forward(self, state):
@@ -89,6 +87,7 @@ class ValueNetwork(nn.Module):
         x_2 = x_2.view(1, 64 * 8 * 8)
         x_2 = self.critic(x_2)
         return x_1, x_2
+
 
 
 def main():
