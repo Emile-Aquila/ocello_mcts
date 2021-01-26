@@ -3,9 +3,17 @@ from model import PolicyNetwork
 from dataclasses import dataclass
 from tqdm import tqdm
 import torch
+from torch.utils.tensorboard import SummaryWriter
 
-epoch_size = 120  # 30
-minibatch_size = 1096  # 4096
+dev = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+# from google.colab import drive
+# drive.mount("/content/drive")
+
+
+epoch_size = 90  # 2 # 130
+minibatch_size = 1096  # 100  # 4096
+
 
 @dataclass
 class train_data_pre:
@@ -53,9 +61,9 @@ def to_train_data(t_data_pre):  # train_data_pre -> train_data
 
 def load_sl_train_data_pre():
     print("[INFO] Start loading train data...")
-    # with open("train_data_for_test.txt", "r") as f:
+    # with open("train_data_for_test.txt", "r") as f:  # for test
+    # with open("/content/drive/My Drive/train_data.txt", "r") as f:  # for colab
     with open("train_data.txt", "r") as f:
-    #    with open("/content/drive/My Drive/train_data.txt", "r") as f:
         data = f.readlines()
     ans = []
     for _, line in enumerate(tqdm(data)):
@@ -69,40 +77,42 @@ def load_sl_train_data_pre():
 def convert(data):
     state = np.array([np.fliplr(np.flipud(data.state[0][0])), np.fliplr(np.flipud(data.state[0][1]))])
     state = state.reshape((1, 2, 8, 8))
-    # print(state.shape)
-    action = (7-data.action[0], 7-data.action[1])
+    action = (7 - data.action[0], 7 - data.action[1])
 
     return train_data(state, action)
 
 
 def train_PolicyNetwork(network):
+    # writer = SummaryWriter(log_dir="/content/drive/My Drive/logs")  # tensorboard for colab
+    writer = SummaryWriter(log_dir="./logs")  # tensorboard
+    writer.add_graph(network, torch.from_numpy(np.zeros(shape=(1, 2, 8, 8))).double().to(dev))
+
     t_data_pre = load_sl_train_data_pre()  # 学習用データの準備
-    t_data_pre_for_test = np.random.choice(t_data_pre, 500, replace=False)
+    t_data_pre_for_test = np.random.choice(t_data_pre, 500, replace=False)  # 500, 50 : for test
     t_data_for_test = [convert(to_train_data(data)) for data in t_data_pre_for_test]
 
-    data_size = len(t_data_pre) // 200000
+    loop_size = 30  # 1 epoch 内での学習回数
     t_data_pre_size = len(t_data_pre)
-    optimizer = torch.optim.Adam(network.parameters(), weight_decay=5e-4)
+    optimizer = torch.optim.Adam(network.parameters())
     lossfunc = torch.nn.CrossEntropyLoss()
+    print("[INFO] Start train.")
 
-    for epoch in tqdm(range(epoch_size)):
-        random_index = np.random.choice(t_data_pre_size, data_size, replace=False)
+    for i, epoch in enumerate(tqdm(range(epoch_size))):
+        random_index = np.random.choice(t_data_pre_size, loop_size, replace=False)
+        losses = []
         for _, idx in enumerate(tqdm(random_index)):
             datas = t_data_pre[idx:min(idx + minibatch_size, t_data_pre_size)]
             datas = [to_train_data(data) for data in datas]
-            loss = torch.tensor(0.0, requires_grad=True)
+            loss = torch.tensor(0.0, requires_grad=True).to(dev)
             for data in datas:
-                predict = network(torch.from_numpy(data.state).double())
-                action = torch.Tensor([data.action[0]*8 + data.action[1]]).long()
+                predict = network(torch.from_numpy(data.state).double().to(dev))
+                action = torch.Tensor([data.action[0] * 8 + data.action[1]]).long().to(dev)
                 if action < 0:
                     print("[ERROR] action id ({}, {}), {}.".format(data.action[0], data.action[1], action))  # debug
                 else:
-                    loss = loss + lossfunc(predict, action)
-                    # pred = predict.detach().numpy()
-                    # pred = (pred.argmax() // 8, pred.argmax() % 8)
-                    # if pred == data.action:
-                    #     accuracy_counter += 1
+                    loss = (loss + lossfunc(predict, action)).to(dev)
             optimizer.zero_grad()
+            losses.append(loss.item())
             loss.backward()
             torch.nn.utils.clip_grad_norm_(network.parameters(), 1.0)
             optimizer.step()
@@ -110,18 +120,26 @@ def train_PolicyNetwork(network):
         tmp = 0
         network.eval()
         for data in t_data_for_test:  # test
-            pred = network(torch.from_numpy(data.state).double()).detach().numpy().argmax()
+            pred = network(torch.from_numpy(data.state).double().to(dev)).cpu().detach().numpy().argmax()
             tmp += int((pred // 8, pred % 8) == data.action)
         network.train()
-        print("[INFO] (epoch {}) accuracy rate is {}%.".format(epoch, float(tmp)/float(len(t_data_for_test))*100.0))
-        torch.save(network.state_dict(), "./SLNet.pth")
 
-    print("[INFO] SL Network model is saved.")
+        accuracy = float(tmp) / float(len(t_data_for_test)) * 100.0
+        ave_loss = sum(losses) / len(losses) / minibatch_size
+        print("[INFO] (epoch {}) accuracy rate is {}%, loss ave is {}.".format(epoch, accuracy, ave_loss))
+        writer.add_scalar("Average loss", ave_loss, i)
+        writer.add_scalar("Accuracy", accuracy, i)
+        network = network.cpu()
+        # torch.save(network.state_dict(), "/content/drive/My Drive/SLNet.pth")
+        torch.save(network.state_dict(), "./models/SLNet.pth")
+        network = network.to(dev)
+    writer.close()
+    print("[INFO] End SL training.")
 
 
 def main():
     print("test")
-    net = PolicyNetwork().double()
+    net = PolicyNetwork().double().to(dev)
     train_PolicyNetwork(net)
 
 

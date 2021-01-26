@@ -22,9 +22,10 @@ class PolicyNetwork(nn.Module):
         self.c9 = nn.Conv2d(out_channels, 1, 1)
         out_shape = 64 * 8 * 8
         self.l1 = nn.Linear(64, 64)
+        self.l2 = nn.Linear(64, 64)
         self.relu = nn.ReLU()
         self.softmax = nn.Softmax(dim=1)
-        self.drop = nn.Dropout(p=0.05)
+        self.drop = nn.Dropout(p=0.1)
         self.train()
 
     def forward(self, state):
@@ -42,7 +43,8 @@ class PolicyNetwork(nn.Module):
         # x_1 = x_1.view(-1, 64 * 8 * 8)
         # x_1 = self.l1(x_1)
         x_1 = x_1.view(-1, 64)
-        x_1 = self.l1(x_1)
+        x_1 = self.drop(self.l1(x_1))
+        x_1 = self.l2(x_1)
         # x_1 = self.softmax(x_1)
         return x_1
 
