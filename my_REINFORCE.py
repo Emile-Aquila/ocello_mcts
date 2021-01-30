@@ -3,13 +3,14 @@ from logging import getLogger
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 import pfrl
 from pfrl import agent
 from pfrl.utils import clip_l2_grad_norm_
 from pfrl.utils.mode_of_distribution import mode_of_distribution
 from pfrl.utils.recurrent import one_step_forward
-
+from board import check_set_stone_matrix
 
 class REINFORCE(agent.AttributeSavingMixin, agent.Agent):
     """William's episodic REINFORCE.
@@ -105,13 +106,25 @@ class REINFORCE(agent.AttributeSavingMixin, agent.Agent):
     def _act_train(self, obs):
 
         batch_obs = self.batch_states([obs], self.device, self.phi)
-        if self.recurrent:
+        if self.recurrent:  # Falseが前提
+            print("reccurent")
             action_distrib, self.train_recurrent_states = one_step_forward(
                 self.model, batch_obs, self.train_recurrent_states
             )
         else:
             action_distrib = self.model(batch_obs)
-        batch_action = action_distrib.sample()
+        # batch_action = action_distrib.sample()  # former
+
+        # new
+        action_dist = F.softmax(action_distrib, dim=1)
+        # print("action distrib {}".format(action_dist))
+        action_dist = action_dist * torch.from_numpy(np.array(check_set_stone_matrix(batch_obs.numpy(), "black"))).double()
+        # print("distrib is {}".format(action_dist))
+        # 常にblackに成る様に統一してる.
+        action_dist = torch.distributions.Categorical(probs=action_dist)  # 合法手のみを出す分布
+        action_distrib = torch.distributions.Categorical(logits=action_distrib)  # loss 計算用
+        batch_action = action_dist.sample()
+        # new ここまで
 
         # Save values used to compute losses
         self.log_prob_sequences[-1].append(action_distrib.log_prob(batch_action))

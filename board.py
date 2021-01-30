@@ -133,7 +133,7 @@ class othello:
         else:
             return 0
 
-    def set_stone(self, index, color):  # 11((1,3)に対応)のような座標の指定で石を配置するメソッド
+    def set_stone_index(self, index, color):  # 11((1,3)に対応)のような座標の指定で石を配置するメソッド
         x, y = index // 8, index % 8
         self.set_stone(x, y, color, 1)
 
@@ -150,14 +150,24 @@ class othello:
         for i in range(8):
             for j in range(8):
                 if self.can_set(i, j, "black"):
-                    self._legal_black.append((i, j))
+                    # self._legal_black.append((i, j))
+                    self._legal_black.append(i*8+j)
                 if self.can_set(i, j, "white"):
-                    self._legal_white.append((i, j))
+                    # self._legal_white.append((i, j))
+                    self._legal_white.append(i*8+j)
         self._already_make_legal = True
 
-    def legal_hands(self, color):
+    def legal_hands(self, color, coordinate=False):  # coordinate = True だと,coordinate型で値を返す.
         self._make_legal()
-        return self._legal_black.copy() if color == "black" else self._legal_white.copy()
+        if coordinate:
+            return self._legal_black.copy() if color == "black" else self._legal_white.copy()
+        else:
+            # if color == "black":
+            #     ans = [(x//8, x % 8) for x in enumerate(self._legal_black)]
+            # else:
+            #     ans = [(x//8, x % 8) for x in enumerate(self._legal_white)]
+            # return ans
+            return self._legal_black if color == "black" else self._legal_white
 
     def undo(self):
         self.board = self._board_stack.pop()
@@ -172,16 +182,60 @@ class othello:
         self._already_make_legal = False
 
     def is_end(self, color="black"):  # True/False, color("black", "white", "none") を返す. 引数の color は次に打つプレイヤーを意味する
-        if self.board.white + self.board.white == 64:  # 盤が埋まった時
-            ans = True, "none"
-            if self.board.black > self.board.white:
-                ans[1] = "black"
-            elif self.board.white > self.board.black:
-                ans[1] = "white"
-            return ans
+        if self.board.black_stone + self.board.white_stone == 64:  # 盤が埋まった時
+            if self.board.black_stone > self.board.white_stone:
+                return True, "black"
+            elif self.board.white_stone > self.board.black_stone:
+                return True, "white"
         # 合法てが無くなった時
         legal_hands = self.legal_hands(color)
         if len(legal_hands) == 0:
             return True, ("white" if color == "black" else "black")
         else:
             return False, "none"
+
+
+def check_set_stone(state, color, x, y):  # (x, y)にcolorの石を置けるか判定する. state : np.array (1,2,8,8)
+    # print("state's shape0 {}".format(state.shape))
+    if color == "black":
+        bd_now = state[0][0]
+        bd_opp = state[0][1]
+    else:
+        bd_now = state[0][1]
+        bd_opp = state[0][0]
+    if (bd_now[x][y] != 0.0) or (bd_opp[x][y] != 0.0):  # もう石がおいてある.
+        return False
+    for i in range(3):
+        for j in range(3):
+            dx, dy = i-1, j-1
+            if (dx == 0) and (dy == 0):
+                continue
+            tmp = check_set_stone_internal(x+dx, y+dy, bd_now, bd_opp, dx, dy)
+            if tmp > 0:
+                return True
+    return False
+
+
+def check_set_stone_internal(x, y, bd_now, bd_opp, dx, dy):  # 石が置けるか判定する
+    # x,y : 座標
+    # bd_now : 操作したい色の板,  bd_opp : もう一方の色の板
+    # dx, dy : 座標をずらす分
+    if x < 0 or x > 7 or y < 0 or y > 7:
+        return -1
+    if bd_now[x][y] == 1.0:
+        return 0  # 見ている色の石に到達した場合
+    elif bd_opp[x][y] != 1.0:
+        return -1  # そもそも石がない場合
+    num = check_set_stone_internal(x + dx, y + dy, bd_now, bd_opp, dx, dy)
+    if num >= 0:
+        return num + 1
+    else:
+        return -1
+
+
+def check_set_stone_matrix(state, color):  # 置ける場所は 1.0, おけない場所は 0.0 が入る配列を返す.
+    return [1.0 if check_set_stone(state, color, i // 8, i % 8) else 0.0 for i in range(64)]
+
+
+
+
