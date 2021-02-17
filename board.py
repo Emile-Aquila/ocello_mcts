@@ -33,7 +33,7 @@ class board:
         # 石の数
 
 
-class othello:
+class Othello:
     def __init__(self):
         self.board = board()  # 現在のボード
         self._board_stack = []  # 過去のボードの履歴, append / pop で使えばok
@@ -43,14 +43,16 @@ class othello:
         self._legal_black = []
         self._legal_white = []
 
-    def print_board(self):
+    def print_board(self, show=True):
+        if not show:
+            return
         print(" ", end="|")
         for i in range(8):
             print(i + 1, end="|")
         print("")
 
         for _ in range(9):
-            print("-", end="-")
+            print("=", end="=")
         print("")
 
         for i in range(8):
@@ -70,12 +72,17 @@ class othello:
             print("")
 
             for _ in range(9):
-                print("-", end="-")
+                if i == 7:
+                    print("=", end="=")
+                else:
+                    print("-", end="-")
             print("")
 
         print(" ", end="|")
         for i in range(8):
             print(i + 1, end="|")
+        print("")
+        print("black:{}, white:{}".format(self.board.black_stone, self.board.white_stone))
         print("")
         print("")
 
@@ -151,10 +158,10 @@ class othello:
             for j in range(8):
                 if self.can_set(i, j, "black"):
                     # self._legal_black.append((i, j))
-                    self._legal_black.append(i*8+j)
+                    self._legal_black.append(i * 8 + j)
                 if self.can_set(i, j, "white"):
                     # self._legal_white.append((i, j))
-                    self._legal_white.append(i*8+j)
+                    self._legal_white.append(i * 8 + j)
         self._already_make_legal = True
 
     def legal_hands(self, color, coordinate=False):  # coordinate = True だと,coordinate型で値を返す.
@@ -190,7 +197,9 @@ class othello:
         # 合法てが無くなった時
         legal_hands = self.legal_hands(color)
         if len(legal_hands) == 0:
-            return True, ("white" if color == "black" else "black")
+            # print("is_end: {}".format(color))
+            # return True, ("white" if color == "black" else "black")
+            return True, ("white" if self.board.black_stone < self.board.white_stone else "black")
         else:
             return False, "none"
 
@@ -207,10 +216,10 @@ def check_set_stone(state, color, x, y):  # (x, y)にcolorの石を置けるか�
         return False
     for i in range(3):
         for j in range(3):
-            dx, dy = i-1, j-1
+            dx, dy = i - 1, j - 1
             if (dx == 0) and (dy == 0):
                 continue
-            tmp = check_set_stone_internal(x+dx, y+dy, bd_now, bd_opp, dx, dy)
+            tmp = check_set_stone_internal(x + dx, y + dy, bd_now, bd_opp, dx, dy)
             if tmp > 0:
                 return True
     return False
@@ -237,5 +246,11 @@ def check_set_stone_matrix(state, color):  # 置ける場所は 1.0, おけな�
     return [1.0 if check_set_stone(state, color, i // 8, i % 8) else 0.0 for i in range(64)]
 
 
+def main():
+    print("test")
+    tmp = othello()
+    print(tmp.get_state())
 
 
+if __name__ == "__main__":
+    main()

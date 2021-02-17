@@ -22,6 +22,22 @@ def transform_state(state, your_color):  # color="black"ならそのままstate�
         return state
 
 
+def play_episode(agent, env, your_color="black", train=True):  # 1 episode
+    agent.training = train
+    while True:
+        state = torch.from_numpy(transform_state(env.get_state(), your_color)).double()
+        action = agent.act(state[0])
+        n_state, rew, done = env.step(action)
+        n_state = torch.from_numpy(transform_state(n_state, your_color)).double()
+        agent.observe(n_state, rew, done, done)
+        if done:
+            return rew
+
+
+
+
+
+
 def policy_train():
     opposite_networks = [PolicyNetwork().double()]
     train_net = PolicyNetwork().double().to(dev)
@@ -35,22 +51,11 @@ def policy_train():
         for i in range(train_epoch_size):
             your_color = "black" if (i % 2 == 0) else "white"  # 学習するnetの色
             env.reset(op_net, your_color=your_color)  # envの初期化
-            while True:
-                state = torch.from_numpy(transform_state(env.get_state(), your_color)).double()
-                action = agent.act(state[0])
-                # if i+1 == train_epoch_size:
-                #     print("action {},{}. ".format(action // 8, action % 8))
-                n_state, rew, done = env.step(action)
-                # n_state, rew, done = env.step(action, show=(i+1 == train_epoch_size))
-                n_state = torch.from_numpy(transform_state(n_state, your_color)).double()
-                # print("rew,done is {},{}".format(rew, done))
-                agent.observe(n_state, rew, done, done)
-                if done:
-                    if rew == 1.0:
-                        total_win_times += 1
-                    total_play_times += 1
-                    break
-            # agent.batch_update()
+            rew = play_episode(agent, env, your_color, True)
+            if rew == 1.0:
+                total_win_times += 1
+            total_play_times += 1
+
         if len(opposite_networks) > max_len:
             opposite_networks.pop()
         win_rate = total_win_times / total_play_times

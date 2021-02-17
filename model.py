@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from board import othello
+from board import Othello
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 dev = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -98,7 +98,7 @@ class ValueNetwork(nn.Module):
 
 def main():
     print("test")
-    bd = othello()
+    bd = Othello()
     plnet = PolicyNetwork().double().to(dev)
     vlnet = ValueNetwork().double().to(dev)
     inp = torch.from_numpy(bd.get_state()).double().to(dev)

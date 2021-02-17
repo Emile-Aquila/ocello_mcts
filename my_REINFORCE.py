@@ -179,10 +179,23 @@ class REINFORCE(agent.AttributeSavingMixin, agent.Agent):
                 )
             else:
                 action_distrib = self.model(batch_obs)
-            if self.act_deterministically:
-                return mode_of_distribution(action_distrib).cpu().numpy()[0]
-            else:
-                return action_distrib.sample().cpu().numpy()[0]
+            # if self.act_deterministically:
+            #     return mode_of_distribution(action_distrib).cpu().numpy()[0]
+            # else:
+            #     return action_distrib.sample().cpu().numpy()[0]
+            # new
+            action_dist = F.softmax(action_distrib, dim=1)
+            # print("action distrib {}".format(action_dist))
+            action_dist = action_dist * torch.from_numpy(
+                np.array(check_set_stone_matrix(batch_obs.numpy(), "black"))).double()
+            # print("distrib is {}".format(action_dist))
+            # 常にblackに成る様に統一してる.
+            action_dist = torch.distributions.Categorical(probs=action_dist)  # 合法手のみを出す分布
+            action_distrib = torch.distributions.Categorical(logits=action_distrib)  # loss 計算用
+            batch_action = action_dist.sample()
+            # new ここまで
+            action = batch_action.cpu().numpy()[0]
+            return action
 
     def _observe_eval(self, obs, reward, done, reset):
         if done or reset:
