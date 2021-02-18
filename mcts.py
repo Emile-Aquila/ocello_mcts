@@ -56,7 +56,7 @@ class MCTS_tree:
         self.rho = rho
         self.gamma = gamma
         self.sikiiti = 10  # この回数以上の経験回数で,葉nodeから子nodeを展開する.(nodes に入れる)
-        self.rollout_times = 2  # rolloutを行う回数
+        self.rollout_times = 3  # rolloutを行う回数
 
         # static values
         self.your_color = your_color  # static
@@ -218,6 +218,7 @@ class MCTS_tree:
         self.search(opposite_color, self.sikiiti*3)
         rho = self.rho
         self.rho = 0.0
+        print(self.rho)
         act = self.selection(opposite_color)
         self.rho = rho
         self.othello.set_stone_index(act, opposite_color)
