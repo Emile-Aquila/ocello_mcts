@@ -248,8 +248,10 @@ def check_set_stone_matrix(state, color):  # 置ける場所は 1.0, おけな�
 
 def main():
     print("test")
-    tmp = othello()
+    tmp = Othello()
     print(tmp.get_state())
+
+
 
 
 if __name__ == "__main__":
