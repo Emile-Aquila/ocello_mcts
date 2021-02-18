@@ -70,7 +70,7 @@ class MCTS_tree:
         self.rho = rho
         self.gamma = gamma
         self.sikiiti = 10  # この回数以上の経験回数で,葉nodeから子nodeを展開する.(nodes に入れる)
-        self.rollout_times = 3  # rolloutを行う回数
+        self.rollout_times = 2  # rolloutを行う回数
 
         # static values
         self.your_color = your_color  # static

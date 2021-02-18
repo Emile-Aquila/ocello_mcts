@@ -42,6 +42,7 @@ class Othello:
         self._already_make_legal = False
         self._legal_black = []
         self._legal_white = []
+        self._legal_hands_table = {}  # new
 
     def print_board(self, show=True):
         if not show:
@@ -152,6 +153,12 @@ class Othello:
     def _make_legal(self):
         if self._already_make_legal:
             return
+        key_state = self.get_state().tobytes()
+        if key_state in self._legal_hands_table:
+            self._legal_black = self._legal_hands_table[key_state][0]
+            self._legal_white = self._legal_hands_table[key_state][1]
+            self._already_make_legal = True
+            return
         self._legal_black = []
         self._legal_white = []
         for i in range(8):
@@ -163,6 +170,7 @@ class Othello:
                     # self._legal_white.append((i, j))
                     self._legal_white.append(i * 8 + j)
         self._already_make_legal = True
+        self._legal_hands_table[key_state] = (self._legal_black, self._legal_white)
 
     def legal_hands(self, color, coordinate=False):  # coordinate = True だと,coordinate型で値を返す.
         self._make_legal()
