@@ -205,7 +205,7 @@ class MCTS_tree:
         if flag:
             node = self.nodes[(state.tobytes(), action)]
             print("is_leaf : {}".format(node.is_leaf))
-        if (state.tobytes(), action) in self.nodes:
+        if not ((state.tobytes(), action) in self.nodes):
             self.nodes[(state.tobytes(), action)] = Node(state, action)
         self.othello.set_stone_index(action, color)
         if self.nodes[(state.tobytes(), action)].is_leaf:
