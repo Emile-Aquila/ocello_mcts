@@ -15,20 +15,6 @@ class StateAction:
     action: int
 
 
-# def step_othello(othello, action, color, show=False):
-#     if not (action in othello.legal_hands(color, coordinate=True)):
-#         print("[ERROR] Action you selected is not legal hand. in step_othello function.")
-#         return othello, 0.0, True
-#     opposite_color = "white" if color == "black" else "black"
-#     othello.set_stone_index(action, color)
-#     othello.print_board(show)
-#     flag, winner = othello.is_end(opposite_color)  # 終了判定
-#     if flag:
-#         return othello, (1.0 if winner == "black" else -1.0), True
-#     else:
-#         return othello, 0.0, False
-
-
 def step_othello(othello, action, color, show=False):
     if not (action in othello.legal_hands(color, coordinate=True)):
         print("[ERROR] Action you selected is not legal hand. in step_othello function.")
@@ -149,10 +135,13 @@ class MCTS_tree:
         if not node.is_leaf:
             print("[Error] this node is not leaf node. in MCTS._expansion")
         state = self.othello.get_state()  # nodeのstateの次のstate
+        key_state = state.tobytes()
         legal_hands = self.othello.legal_hands(opposite_color, True)  # n_stateについての合法手
         for act in legal_hands:  # expansion
+            if (key_state, act) in self.nodes:
+                continue
             new_node = Node(state, act)
-            self.nodes[(state.tobytes(), act)] = new_node
+            self.nodes[(key_state, act)] = new_node
         node.is_leaf = False
         # return node
 
@@ -262,10 +251,17 @@ def main():
         while True:
             inp = input("input stone : ex. 3,4 : ")
             inp = inp.split(",")
-            inp = (int(inp[0])-1)*8+(int(inp[1])-1)
-            if inp in legal_hands:
-                rew = test.play_step(inp)
-                break
+            print("input : {}".format(inp))
+            if inp[0] == "*":
+                for tmp in test.nodes:
+                    node = test.nodes[tmp]
+                    print("state {}, act {}, q_value {}, visited_times {}".format(node.state, node.action, node.q_value,
+                                                                                  node.visited_times))
+            else:
+                inp = (int(inp[0])-1)*8+(int(inp[1])-1)
+                if inp in legal_hands:
+                    rew = test.play_step(inp)
+                    break
         if rew != 0.0:
             print("End this game. rew is {}".format(rew))
 
