@@ -11,8 +11,8 @@ dev = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # drive.mount("/content/drive")
 
 
-epoch_size = 90  # 2 # 130
-minibatch_size = 1096  # 100  # 4096
+epoch_size = 30  # 2 # 130
+minibatch_size = 4096  # 100  # 4096
 
 
 @dataclass
@@ -48,7 +48,8 @@ def to_state(state_pre):  # state_pre -> state の変換
 
 
 def to_state_opposite(state):  # white視点のボードをblack視点に変換する
-    state[0][0], state[0][1] = state[0][1], state[0][0]
+    # state[0][0], state[0][1] = state[0][1], state[0][0]
+    state = np.array([state[0][[1, 0], :]])
     return state
 
 
@@ -82,6 +83,14 @@ def convert(data):
     return train_data(state, action)
 
 
+def rotate_train_data(train_data_):
+    action = train_data_.action
+    state = train_data_.state
+    state = np.rot90(state, k=1, axes=(2, 3)).copy()
+    action = action[1], int(-1 * (action[0] - 3.5) + 3.5)
+    return train_data(state, action)
+
+
 def train_PolicyNetwork(network):
     # writer = SummaryWriter(log_dir="/content/drive/My Drive/logs")  # tensorboard for colab
     writer = SummaryWriter(log_dir="./logs")  # tensorboard
@@ -95,14 +104,23 @@ def train_PolicyNetwork(network):
     t_data_pre_size = len(t_data_pre)
     optimizer = torch.optim.Adam(network.parameters())
     lossfunc = torch.nn.CrossEntropyLoss()
+    train_datas = [to_train_data(data) for data in tqdm(t_data_pre)]
+    del t_data_pre  # メモリ解放
+
+    # test = train_datas[0]
+    # print("test : {}".format(test))
+    # test2 = rotate_train_data(test)
+    # print("test2 : {}".format(test2))
     print("[INFO] Start train.")
 
     for i, epoch in enumerate(tqdm(range(epoch_size))):
-        random_index = np.random.choice(t_data_pre_size, loop_size, replace=False)
+        # random_index = np.random.choice(t_data_pre_size, loop_size, replace=False)
         losses = []
-        for _, idx in enumerate(tqdm(random_index)):
-            datas = t_data_pre[idx:min(idx + minibatch_size, t_data_pre_size)]
-            datas = [to_train_data(data) for data in datas]
+        # for _, idx in enumerate(tqdm(random_index)):
+        for _ in enumerate(tqdm(range(loop_size))):
+            # datas = t_data_pre[idx:min(idx + minibatch_size, t_data_pre_size)]
+            datas = np.random.choice(train_datas, minibatch_size)
+            # datas = [to_train_data(data) for data in datas]
             loss = torch.tensor(0.0, requires_grad=True).to(dev)
             for data in datas:
                 predict = network(torch.from_numpy(data.state).double().to(dev))
